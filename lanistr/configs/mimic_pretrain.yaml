@@ -1,0 +1,127 @@
+# Copyright 2024 Google LLC.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+seed: 2022
+
+# number of samples in training data to randomly subsample if greater than 0
+sub_samples: 0
+
+do_train: true
+do_test: false
+
+dataset_name: mimic-iv
+task: pretrain
+
+# modalities presense
+image: true
+text: true
+tab: false
+time: true
+
+pretrain_resume: false
+pretrain_initialize_from_epoch: 0
+
+image_size: 224
+image_crop: 224
+mask_patch_size: 16
+model_patch_size: 16
+image_masking_ratio: 0.5
+
+root_data_dir: ./data/MIMIC-IV-V2.2/physionet.org/files
+image_data_dir: ./data/MIMIC-IV-V2.2/physionet.org/files/mimic-cxr-jpg/2.0.0
+task_data_dir: ./data/MIMIC-IV-V2.2/in-hospital-mortality
+unimodal_data_dir: ./data/MIMIC-IV-V2.2/in-hospital-mortality/unimodal_data
+preprocessed_data_dir: ./data/MIMIC-IV-V2.2/
+# do not change normalizer_file and discretizer_config_path
+normalizer_file: ./data/MIMIC-IV-V2.2/normalizer.csv
+discretizer_config_path: ./data/MIMIC-IV-V2.2/discretizer_config.json
+
+output_dir: ./output_dir/mimic_pretrain
+experiment_name: mimic_pretrain
+
+
+test_ratio: 0.0
+
+train_batch_size: 128
+eval_batch_size: 128
+test_batch_size: 128
+
+scheduler:
+  num_epochs: 40
+  warmup_epochs: 5
+
+optimizer:
+  learning_rate: 0.0001
+  weight_decay: 0.02
+  clip_value: 5.0
+
+
+# Loss weights
+lambda_mim: 1.0
+lambda_mlm: 1.0
+lambda_mtm: 0.1
+lambda_mmm: 1.0
+
+# Multimodal fusion encoder
+mm_encoder_trainable: true
+mm_hidden_dim: 2048
+mm_output_dim: 2048
+
+# simsiam pretraining projector and predictor
+projection_type: SimSiam
+predictor_hidden_dim: 512
+predictor_out_dim: 2048
+
+# unimodal encoders projection dim
+projection_dim: 768
+
+# text encoder
+text_encoder_name: bert-base-uncased
+text_encoder_pretrained: true
+text_encoder_trainable: true
+text_embedding_dim: 768
+max_token_length: 512
+mlm_probability: 0.15
+
+# image encoder
+image_encoder_name: google/vit-base-patch16-224
+image_encoder_pretrained: true
+image_encoder_trainable: true
+image_embedding_dim: 768
+
+# time series encoder
+timeseries_input_dim: 76
+timeseries_dim_feedforward: 256
+timeseries_max_seq_len: 48
+timeseries_layers: 3
+timeseries_n_heads: 4
+timeseries_dropout: 0.1
+timeseries_embedding_dim: 76
+timeseries_activation: gelu
+timeseries_encoder_trainable: true
+timeseries_masking_ratio: 0.15
+timeseries_mean_mask_length: 3
+timeseries_mask_mode: separate
+timeseries_mask_distribution: geometric
+impute_strategy: zero
+start_time: zero
+timestep: 1.0
+
+
+# data parallelism
+multiprocessing_distributed: true
+dist_backend: nccl
+ngpus_per_node: 8
+world_size: 1
+workers: 16

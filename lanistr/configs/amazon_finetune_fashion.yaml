@@ -1,0 +1,119 @@
+# Copyright 2024 Google LLC.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     https://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+seed: 2022
+
+# number of samples in training data to randomly subsample if greater than 0
+sub_samples: 512
+
+do_train: true
+do_test: false
+
+dataset_name: amazon
+category: AMAZON_FASHION
+task: finetune
+perf_metric: accuracy
+num_classes: 5
+
+
+# modality presense
+image: true
+text: true
+tab: true
+time: false
+
+finetune_initialize_from: pretrain
+
+data_dir: ./data/APR2018/AMAZON_FASHION
+image_data_dir: ./data/APR2018/AMAZON_FASHION/images
+
+output_dir: ./output_dir/amazon_pretrain
+experiment_name: amazon_finetune_fashion
+
+
+test_ratio: 0.2
+
+train_batch_size: 32
+eval_batch_size: 128
+test_batch_size: 256
+
+scheduler:
+  num_epochs: 200
+  warmup_epochs: 20
+
+optimizer:
+  learning_rate: 1e-4
+  weight_decay: 0.1
+  clip_value: 5.0
+
+
+# multimodal fusion encoder
+mm_encoder_trainable: true
+mm_hidden_dim: 2048
+mm_output_dim: 2048
+
+
+# simsiam pretraining projector and predictor
+projection_type: SimSiam
+predictor_hidden_dim: 512
+predictor_out_dim: 2048
+
+# unimodal encoders projection dim
+projection_dim: 768
+
+# classifier head
+classifier_hidden_dim: 768
+
+
+# text encoder
+tokenizer_name_or_path: bert-base-uncased
+text_encoder_name: bert-base-uncased
+text_encoder_pretrained: true
+text_encoder_trainable: false
+text_proj_trainable: true
+text_embedding_dim: 768
+max_token_length: 512
+mlm_probability: 0.15
+
+# image encoder
+image_encoder_name: google/vit-base-patch16-224
+image_encoder_pretrained: true
+image_encoder_trainable: false
+image_proj_trainable: true
+image_embedding_dim: 768
+image_size: 224
+image_crop: 224
+mask_patch_size: 16
+model_patch_size: 16
+image_masking_ratio: 0.5
+
+# tabular encoder
+tabular_encoder_name: tabnet
+tabular_encoder_trainable: false
+tabular_proj_trainable: true
+tabular_output_dim: 768
+tabular_embedding_dim: 64
+tabular_pretraining_ratio: 0.15
+tabular_cat_emb_dim: 3
+tabular_mask_type: sparsemax
+tabular_n_d: 64
+tabular_n_a: 64
+
+
+# data parallelism
+multiprocessing_distributed: true
+dist_backend: nccl
+ngpus_per_node: 8
+world_size: 1
+workers: 16
