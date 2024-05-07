@@ -17,7 +17,7 @@ import setuptools
 
 base_requires = [
     'omegaconf==2.3.0',
-    'transformers==4.26.0',
+    'transformers==4.38.0',
     'torch==1.11.0+cu113',
     'torchmetrics==0.9.3',
     'torchvision==0.12.0+cu113',
