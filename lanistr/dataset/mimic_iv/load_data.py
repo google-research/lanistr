@@ -23,7 +23,7 @@ from dataset.mimic_iv.mimic_utils import load_labeled_multimodal_data
 from dataset.mimic_iv.mimic_utils import load_pretraining_multimodal_data
 from dataset.mimic_iv.mimic_utils import load_unimodal_data
 from dataset.mimic_iv.mimic_utils import padding_mask
-from external_modules.mvts_transformer.timeseries_encoder import noise_mask
+from third_party.mvts_transformer.timeseries_encoder import noise_mask
 import numpy as np
 import omegaconf
 import pandas as pd

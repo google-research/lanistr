@@ -15,9 +15,9 @@ limitations under the License.
 
 import os
 
-from external_modules.mvts_transformer.timeseries_encoder import TimeSeriesEncoder
-from external_modules.tabnet.tabular_encoder import TabNet
-from external_modules.tabnet.tabular_encoder import TabNetPretraining
+from third_party.mvts_transformer.timeseries_encoder import TimeSeriesEncoder
+from third_party.tabnet.tabular_encoder import TabNet
+from third_party.tabnet.tabular_encoder import TabNetPretraining
 from model.lanistr_utils import BertOnlyMLMHead as mlm_head
 from model.lanistr_utils import build_projector
 from model.lanistr_utils import ViTForMaskedImageModelingDecoder as mim_head
