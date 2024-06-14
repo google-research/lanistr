@@ -37,8 +37,8 @@ wget https://datarepo.eng.ucsd.edu/mcauley_group/data/amazon_v2/metaFiles2/meta_
 cd ../../../
 
 # the following take nearly 30 minutes each.
-python datasets/amazon/download_images.py --category All_Beauty
-python datasets/amazon/download_images.py --category AMAZON_FASHION
+python dataset/amazon/download_images.py --category All_Beauty
+python dataset/amazon/download_images.py --category AMAZON_FASHION
 
 # this will take many hours but it goes by fast because there are not too many images
-python datasets/amazon/download_images.py --category Office_Products
+python dataset/amazon/download_images.py --category Office_Products
