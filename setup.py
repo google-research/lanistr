@@ -23,7 +23,7 @@ base_requires = [
     'torchvision==0.12.0+cu113',
     'pytz==2021.3',
     'pandas==1.3.5',
-    'scikit-learn==1.3.2',
+    'scikit-learn==1.5.0',
 ]
 
 setuptools.setup(
