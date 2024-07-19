@@ -215,7 +215,7 @@ class Trainer:
         inputs["pixel_values"] = batch["pixel_values"].cuda(
             self.device, non_blocking=True
         )
-        inputs["bool_masked_pos"] = batch["bool_masked_pos"].cuda(
+        inputs["bool_masked_positions"] = batch["bool_masked_positions"].cuda(
             self.device, non_blocking=True
         )
 
@@ -342,7 +342,7 @@ class Trainer:
         inputs["pixel_values"] = batch["pixel_values"].cuda(
             self.device, non_blocking=True
         )
-        inputs["bool_masked_pos"] = batch["bool_masked_pos"].cuda(
+        inputs["bool_masked_positions"] = batch["bool_masked_positions"].cuda(
             self.device, non_blocking=True
         )
       if self.args.text:
@@ -421,7 +421,7 @@ class Trainer:
           inputs["pixel_values"] = batch["pixel_values"].cuda(
               self.device, non_blocking=True
           )
-          inputs["bool_masked_pos"] = batch["bool_masked_pos"].cuda(
+          inputs["bool_masked_positions"] = batch["bool_masked_positions"].cuda(
               self.device, non_blocking=True
           )
         if self.args.text:

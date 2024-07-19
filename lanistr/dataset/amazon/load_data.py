@@ -56,6 +56,8 @@ def load_amazon(
       )
   )
   feature_names = categorical_cols + numerical_cols
+  image_names = ['ImageFileName']
+  text_names = ['Review']
   train_data, test_data, valid_data = get_train_and_test_splits(
       args, amazon_data
   )
@@ -65,6 +67,8 @@ def load_amazon(
       'cat_idxs': cat_idxs,
       'cat_dims': cat_dims,
       'feature_names': feature_names,
+      'image_names': image_names,
+      'text_names': text_names,
   }
 
   dataframes = {
@@ -103,6 +107,8 @@ def create_multimodal_dataset_from_dataframes(
       tokenizer=tokenizer,
       transform=train_transform,
       feature_names=dataframes['tabular_data_information']['feature_names'],
+      image_names=dataframes['tabular_data_information']['image_names'],
+      text_names=dataframes['tabular_data_information']['text_names'],
       text=args.text,
       image=args.image,
       tab=args.tab,
@@ -113,6 +119,8 @@ def create_multimodal_dataset_from_dataframes(
       tokenizer=tokenizer,
       transform=test_transform,
       feature_names=dataframes['tabular_data_information']['feature_names'],
+      image_names=dataframes['tabular_data_information']['image_names'],
+      text_names=dataframes['tabular_data_information']['text_names'],
       text=args.text,
       image=args.image,
       tab=args.tab,
@@ -123,6 +131,8 @@ def create_multimodal_dataset_from_dataframes(
       tokenizer=tokenizer,
       transform=train_transform,
       feature_names=dataframes['tabular_data_information']['feature_names'],
+      image_names=dataframes['tabular_data_information']['image_names'],
+      text_names=dataframes['tabular_data_information']['text_names'],
       text=args.text,
       image=args.image,
       tab=args.tab,
@@ -146,6 +156,8 @@ class AmazonImageTextTabular(data.Dataset):
       tokenizer: transformers.BertTokenizer,
       transform: torchvision.transforms.Compose,
       feature_names: List[str],
+      image_names: List[str],
+      text_names: List[str],
       text: bool,
       image: bool,
       tab: bool,
@@ -157,7 +169,9 @@ class AmazonImageTextTabular(data.Dataset):
         df: The dataframe to use for the dataset.
         tokenizer: The tokenizer to use for the text.
         transform: The transform to use for the images.
-        feature_names: The names of the features to use.
+        feature_names: The names of the features columns.
+        image_names: The names of the image columns.
+        text_names: The names of the text columns.
         text: Whether to use text.
         image: Whether to use images.
         tab: Whether to use tabular data.
@@ -171,7 +185,10 @@ class AmazonImageTextTabular(data.Dataset):
       self.features = self.df[feature_names].values
 
     if text:
-      self.reviews = df['Review'].values
+      self.texts = df[text_names].values
+
+    if image:
+      self.images = df[image_names].values
 
     self.mask_generator = MaskGenerator(
         input_size=args.image_size,
@@ -199,48 +216,37 @@ class AmazonImageTextTabular(data.Dataset):
 
     # text
     if self.text:
-      review = self.reviews[index]
-
-      try:
-        item = self.tokenizer.encode_plus(
-            review,
-            max_length=self.args.max_token_length,
-            truncation=True,
-            add_special_tokens=True,
-            return_token_type_ids=False,
-            padding='max_length',
-            return_attention_mask=True,
-            return_tensors='pt',
-        )
-      except Exception as e:  # pylint: disable=broad-exception-caught
-        print(e)
-        item = self.tokenizer.encode_plus(
-            '',
-            max_length=self.args.max_token_length,
-            truncation=True,
-            add_special_tokens=True,
-            return_token_type_ids=False,
-            padding='max_length',
-            return_attention_mask=True,
-            return_tensors='pt',
-        )
+      input_ids_list = []
+      attention_mask_list = []
+      for text in self.texts[index]:
+        encode_result = self.encode_text(text)
+        input_ids_list.append(encode_result['input_ids'])
+        attention_mask_list.append(encode_result['attention_mask'])
+      # input_ids has shape (text_num, token_length)
+      item['input_ids'] = torch.cat(input_ids_list)
+      # attention_mask has shape (text_num, token_length)
+      item['attention_mask'] = torch.cat(attention_mask_list)
 
     # image
     if self.image:
-      image_filename = row['ImageFileName']
-      if isinstance(image_filename, str):
-        image_path = os.path.join(self.args.image_data_dir, image_filename)
-        img = Image.open(image_path).convert('RGB')
-        img = self.transform(img)
-        item['pixel_values'] = img
-        item['bool_masked_pos'] = self.mask_generator()
-      else:
-
-        item['pixel_values'] = torch.zeros(
+      pixel_values = []
+      bool_masked_positions = []
+      for image_data in self.images[index]:
+        if isinstance(image_data, str):
+          image_path = os.path.join(self.args.image_data_dir, image_data)
+          img = Image.open(image_path).convert('RGB')
+          img = self.transform(img)
+          pixel_values.append(img)
+        else:
+          pixel_values.append(torch.zeros(
             size=(3, self.args.image_size, self.args.image_size),
             dtype=torch.float,
-        )
-        item['bool_masked_pos'] = self.mask_generator()
+          ))
+        bool_masked_positions.append(self.mask_generator())
+      # pixel_values has shape (image_num, channel, width, height)
+      item['pixel_values'] = torch.stack(pixel_values)
+      # bool_masked_positions has shape (image_num, model_patch_size**2)
+      item['bool_masked_positions'] = torch.stack(bool_masked_positions)
 
     # tabular
     if self.tab:
@@ -261,3 +267,28 @@ class AmazonImageTextTabular(data.Dataset):
         The length of the dataset.
     """
     return len(self.df)
+  
+  def encode_text(self, text: str):
+    try:
+      return self.tokenizer.encode_plus(
+          text,
+          max_length=self.args.max_token_length,
+          truncation=True,
+          add_special_tokens=True,
+          return_token_type_ids=False,
+          padding='max_length',
+          return_attention_mask=True,
+          return_tensors='pt',
+      )
+    except Exception as e:  # pylint: disable=broad-exception-caught
+      print(e)
+      return self.tokenizer.encode_plus(
+          '',
+          max_length=self.args.max_token_length,
+          truncation=True,
+          add_special_tokens=True,
+          return_token_type_ids=False,
+          padding='max_length',
+          return_attention_mask=True,
+          return_tensors='pt',
+      )
