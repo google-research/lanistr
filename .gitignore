@@ -1,0 +1,9 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+
+# data folder contains downloadable public datasets
+data/
+
+# Editor
+.vscode/

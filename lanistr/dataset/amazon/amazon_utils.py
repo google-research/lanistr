@@ -42,11 +42,11 @@ def load_multimodal_data(args: omegaconf.DictConfig) -> pd.DataFrame:
       A pandas DataFrame containing the loaded data.
   """
   if args.task == "pretrain":
-    path = os.path.join(args.data_dir, f"{args.category}_total.json.gz")
+    path = os.path.join(args.data_dir, f"{args.category}.json.gz")
     data = read_gzip(path)
   else:
     path_to_clean_data = os.path.join(
-        args.data_dir, f"{args.category}_total.csv"
+        args.data_dir, f"{args.category}.csv"
     )
     data = pd.read_csv(path_to_clean_data)
     data = data.reset_index(drop=True)
