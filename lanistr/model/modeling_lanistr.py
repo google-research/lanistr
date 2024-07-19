@@ -382,29 +382,46 @@ class LANISTRMultiModalModel(nn.Module):
     embeds = []
     ##================================= Text =================================##
     if self.args.text:
-      batch['input_ids'] = batch['input_ids'].squeeze(1)
-      batch['attention_mask'] = batch['attention_mask'].squeeze(1)
-
-      # forwarding regular inputs:
-      outputs = self.text_encoder(
-          input_ids=batch['input_ids'],
-          attention_mask=batch['attention_mask'],
+      # batch['input_ids'] has shape (batch_size text_num, id_length), e.g. [4, 2, 512].
+      batch_size = batch['input_ids'].shape[0]
+      text_num = batch['input_ids'].shape[1]
+      text_contents = batch['input_ids'].flatten(start_dim=0, end_dim=1)
+      attention_mask = batch['attention_mask'].flatten(start_dim=0, end_dim=1)
+      
+      text_encoding = self.text_encoder(
+          input_ids=text_contents,
+          attention_mask=attention_mask,
       )
-      last_hidden_state = outputs.last_hidden_state
+      last_hidden_state = text_encoding.last_hidden_state
       text_embeddings = self.text_proj(
           last_hidden_state[:, self.target_token_idx, :]
       )
+      text_embeddings = text_embeddings.reshape(tuple([batch_size, text_num] + list(text_embeddings.shape)[1:]))
+    
+      # Average the embeddings for all the text inputs.
+      text_embeddings = text_embeddings.mean(dim=1, keepdim=True)
 
+      # TODO(Reviewer): the internal code doesn't have normalization. Do we need this? Is the dimension correct? text_embeddings has shape (batch_size, dim1, dim2)
       text_embeddings = F.normalize(text_embeddings, dim=1)
-      embeds.append(text_embeddings.unsqueeze(dim=1))
+      embeds.append(text_embeddings)
 
     ##================================== Image ===============================##
     if self.args.image:
+      # batch['pixel_values'] has shape (batch_size, image_num, channel, width, height), e.g. [4, 2, 3, 224, 224].
+      batch_size = batch['pixel_values'].shape[0]
+      image_num = batch['pixel_values'].shape[1]
+      images = batch['pixel_values'].flatten(start_dim=0, end_dim=1)
 
-      image_features = self.image_encoder(
-          pixel_values=batch['pixel_values'], bool_masked_pos=None
+      image_encodings = self.image_encoder(
+          pixel_values=images, bool_masked_pos=None
       )
-      image_embeddings = self.image_proj(image_features.last_hidden_state)
+      image_embeddings = self.image_proj(image_encodings.last_hidden_state)
+      image_embeddings = image_embeddings.reshape(
+          tuple([batch_size, image_num] + list(image_embeddings.shape)[1:])
+      )
+      image_embeddings = image_embeddings.mean(dim=1)
+
+      # TODO(Reviewer): the internal code doesn't have normalization. Do we need this? Is the dimension correct? image_embeddings has shape (batch_size, dim1, dim2)
       image_embeddings = F.normalize(image_embeddings, dim=1)
       embeds.append(image_embeddings)
 

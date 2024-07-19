@@ -17,7 +17,7 @@ import argparse
 import gzip
 import json
 import os
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import omegaconf
 import pandas as pd
@@ -60,7 +60,7 @@ def load_and_clean_meta_data(
   return metadata
 
 
-def read_gzip(name: str, args: omegaconf.DictConfig) -> List[dict[str, str]]:
+def read_gzip(name: str, args: omegaconf.DictConfig) -> List[Dict[str, str]]:
   """Reads a gzipped file and returns a list of JSON objects.
 
   Args:
@@ -103,8 +103,8 @@ def load_data(args: omegaconf.DictConfig) -> pd.DataFrame:
 def get_reviews(
     row: pd.Series,
     index: int,
-    nan_indices_summary: list[int],
-    nan_indices_review_text: list[int],
+    nan_indices_summary: List[int],
+    nan_indices_review_text: List[int],
 ) -> Optional[str]:
   """Extracts and cleans the review text from a row of data.
 
@@ -135,7 +135,7 @@ def get_reviews(
 
 
 def get_review_votes(
-    row: pd.Series, index: int, nan_indices_votes: list[int]
+    row: pd.Series, index: int, nan_indices_votes: List[int]
 ) -> int:
   """Extracts and cleans the review vote from a row of data.
 
@@ -181,7 +181,7 @@ def get_product_brands(
 
 
 def download_and_save_image(
-    image_data_dir: str, urls: list[str], index: int
+    image_data_dir: str, urls: List[str], index: int
 ) -> Optional[str]:
   """Downloads and saves the image from a URL.
 
@@ -236,7 +236,7 @@ def get_product_prices(
 
 
 def get_review_names(
-    row: pd.Series, index: int, nan_indices_reviewer_names: list[int]
+    row: pd.Series, index: int, nan_indices_reviewer_names: List[int]
 ) -> Optional[str]:
   """Extracts and cleans the reviewer name from a row of data.
 
@@ -389,7 +389,7 @@ def main():
     # row = data.iloc[index]
 
     meta_row = meta_data.loc[meta_data['asin'] == row['asin'].item()]
-    meta_data_exists = True if meta_row else False
+    meta_data_exists = False if meta_row.empty else True
 
     amazon_image_exists = False
     user_image_exists = False
@@ -443,8 +443,8 @@ def main():
 
   categorical_cols = ['reviewerID', 'verified', 'asin', 'year']
   numerical_cols = ['vote', 'unixReviewTime']
-  image_col = ['ImageFileName']
-  text_col = ['Review']
+  image_cols = ['ImageFileName']
+  text_cols = ['Review']
   label_col = ['labels']
 
   d = pd.DataFrame()
@@ -474,8 +474,8 @@ def main():
       if item
       not in categorical_cols
       + numerical_cols
-      + image_col
-      + text_col
+      + image_cols
+      + text_cols
       + label_col
   ]
 
