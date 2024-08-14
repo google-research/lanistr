@@ -109,7 +109,7 @@ class Trainer:
       )
       if os.path.exists(latest_checkpoint_path):
         print_only_by_main_process(
-            "Initializing the entire model from previous pretrain"
+            "Initializing the optimizer from previous pretrain"
         )
         loc = "cuda:{}".format(self.args.device)
         latest_checkpoint = torch.load(latest_checkpoint_path, map_location=loc)
@@ -182,7 +182,7 @@ class Trainer:
         "Pretraining ends for lanistr. Best epoch was at epoch=%d", best_epoch
     )
     print_only_by_main_process(
-        "Pretraining ends for lanistr. Best epoch was at epoch=%d", best_epoch
+        "Pretraining ends for lanistr. Best epoch was at epoch=%d".format(best_epoch)
     )
 
   def pretrain_epoch(
@@ -272,9 +272,20 @@ class Trainer:
     train_dataloader = dataloaders["train"]
     valid_dataloader = dataloaders["valid"]
 
+    metric = self.args.perf_metric.upper()
+
+    if metric not in ["ACCURACY", "RMSE", "AUROC"]:
+      raise NotImplementedError(
+          f"Performance metric {metric} not implemented"
+      )
+
     self.optimizer, self.scheduler = self.get_optimizer()
 
-    best_perf = 0
+    if metric in ("ACCURACY", "AUROC"):
+      best_perf = 0
+    elif metric == "RMSE":
+      best_perf = np.inf
+    
     for epoch in range(self.num_epochs):
       if self.distributed:
         train_dataloader.sampler.set_epoch(epoch)
@@ -288,8 +299,12 @@ class Trainer:
       # evaluate on validation set
       valid_results = self.validate(valid_dataloader)
 
-      is_best = valid_results[self.args.perf_metric.upper()] > best_perf
-      best_perf = max(valid_results[self.args.perf_metric.upper()], best_perf)
+      if metric in ("ACCURACY", "AUROC"):
+        is_best = valid_results[metric] > best_perf
+        best_perf = max(valid_results[metric], best_perf)
+      elif metric == "RMSE":
+        is_best = valid_results[metric] < best_perf
+        best_perf = min(valid_results[metric], best_perf)
 
       print_performance_by_main_process(
           epoch,
@@ -299,7 +314,7 @@ class Trainer:
           valid_results,
           is_best,
           best_perf,
-          metric_name=self.args.perf_metric.upper(),
+          metric_name=metric,
       )
 
       if not self.multiprocessing_distributed or (
@@ -368,9 +383,15 @@ class Trainer:
       loss = output.loss
 
       # measure accuracy and record loss
-      self.metrics["train"][self.args.perf_metric.upper()].update(
-          preds=output.logits, target=inputs["labels"]
-      )
+      if self.args.perf_metric.upper() in ("ACCURACY", "AUROC"):
+        self.metrics["train"][self.args.perf_metric.upper()].update(
+            preds=output.logits, target=inputs["labels"]
+        )
+      elif self.args.perf_metric.upper() == "RMSE":
+        # Assumes labels are shape (Batch,) and num_classes is set to 1
+        self.metrics["train"][self.args.perf_metric.upper()].update(
+            preds=output.logits.squeeze(), target=inputs["labels"]
+        )
 
       # compute gradient and do gradient update step
       if self.distributed:
@@ -450,9 +471,18 @@ class Trainer:
         loss = output.loss
 
         # measure accuracy and record loss
-        self.metrics["test"][self.args.perf_metric.upper()].update(
-            preds=output.logits, target=inputs["labels"]
-        )
+        if self.args.perf_metric.upper() in ("ACCURACY", "AUROC"):
+          self.metrics["test"][self.args.perf_metric.upper()].update(
+              preds=output.logits, target=inputs["labels"]
+          )
+        elif self.args.perf_metric.upper() == "RMSE":
+          self.metrics["test"][self.args.perf_metric.upper()].update(
+              preds=output.logits.squeeze(), target=inputs["labels"]
+          )
+        else:
+          raise NotImplementedError(
+              f"Performance metric {self.args.perf_metric} not implemented"
+          )
 
         if self.distributed:
           self.metrics["test"]["Loss"].update(loss.item())

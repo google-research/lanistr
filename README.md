@@ -191,6 +191,13 @@ separate columns.
 ./dataset/amazon/load_data.py to correctly read and iterate through your CSV
 data. This might involve adjusting column names, data types, and loading logic.
 
+#### If adapting to regression
+Set the `supervised_loss: mse_loss` property in the config. Value can be any of the [pytorch functional losses](https://pytorch.org/docs/stable/nn.functional.html#loss-functions).
+
+Set `num_classes: 1` property in the config.
+
+Finally, currently only RMSE is supported as a validation metric, set `perf_metric: RMSE` in the config.
+
 ### How to skip pretraining and use LANISTR for supervised learning only
 
 **Choose a finetuning config file:** Select one of the provided finetuning

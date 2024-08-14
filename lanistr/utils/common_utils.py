@@ -108,6 +108,13 @@ def get_metrics(args):
             num_classes=args.num_classes, task="binary"
         ).to(args.device)
 
+    elif args.num_classes == 1: # Assume 1 class only for regression
+      metric_names.append("RMSE")
+      for phase in ["train", "test"]:
+        metrics[phase]["RMSE"] = torchmetrics.MeanSquaredError(
+            squared=False
+        ).to(args.device)
+
   return metrics, metric_names
 
 

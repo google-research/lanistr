@@ -89,13 +89,17 @@ class LANISTRMultiModalForPreTraining(nn.Module):
     self.mmm_loss = NegativeCosineSimilarityLoss
     self.target_token_idx = 0
 
-    self.mlm_head = mlm_head(text_encoder.config)
-    self.mlm_loss_fcn = nn.CrossEntropyLoss()  # -100 index = padding token
+    if args.text:
+        # Dont want to break if text is both not used and not configured
+        self.mlm_head = mlm_head(text_encoder.config)
+        self.mlm_loss_fcn = nn.CrossEntropyLoss()  # -100 index = padding token
 
-    self.image_encoder.embeddings.mask_token = nn.Parameter(
-        torch.zeros(1, 1, image_encoder.config.hidden_size)
-    )
-    self.mim_head = mim_head(image_encoder.config)
+    if args.image:
+        # Dont want to break if image is both not used and not configured
+        self.image_encoder.embeddings.mask_token = nn.Parameter(
+            torch.zeros(1, 1, image_encoder.config.hidden_size)
+        )
+        self.mim_head = mim_head(image_encoder.config)
 
     self.mtm_loss_fcn = MaskedMSELoss(reduction='none')
 
@@ -110,12 +114,15 @@ class LANISTRMultiModalForPreTraining(nn.Module):
     Returns:
       LANISTRMultiModalForPreTrainingOutput
     """
-    loss_mlm = torch.zeros(1).to(self.args.device)
-    loss_mim = torch.zeros(1).to(self.args.device)
-    loss_mtm = torch.zeros(1).to(self.args.device)
-    loss_mfm = torch.zeros(1).to(self.args.device)
+    # Handle DataParallel allocation - we want the input data, model and 
+    # loss to be on the same device; first two handled but not the loss
+    running_device = next(iter(batch.values())).device
+    loss_mlm = torch.zeros(1).to(running_device)
+    loss_mim = torch.zeros(1).to(running_device)
+    loss_mtm = torch.zeros(1).to(running_device)
+    loss_mfm = torch.zeros(1).to(running_device)
 
-    loss = torch.zeros(1).to(self.args.device)
+    loss = torch.zeros(1).to(running_device)
 
     embeds = []
     masked_embeds = []
@@ -130,7 +137,7 @@ class LANISTRMultiModalForPreTraining(nn.Module):
       input_ids = batch['input_ids'].clone()
       mlm_labels = input_ids.clone()
       # create random array of floats with equal dimensions to input_ids tensor
-      rand = torch.rand(input_ids.shape).to(self.args.device)
+      rand = torch.rand(input_ids.shape).to(running_device)
 
       # create mask array
       mask_arr = (
@@ -139,7 +146,7 @@ class LANISTRMultiModalForPreTraining(nn.Module):
           * (input_ids != 102)
           * (input_ids != 0)
       )
-      mask_arr = mask_arr.to(self.args.device)
+      mask_arr = mask_arr.to(running_device)
 
       selection = [
           torch.flatten(mask_arr[i].nonzero()).tolist()
@@ -376,6 +383,8 @@ class LANISTRMultiModalModel(nn.Module):
     self.classifier = classifier
 
     self.target_token_idx = 0
+    self.loss_function = getattr(F, self.args.supervised_loss, "cross_entropy")
+
 
   def forward(self, batch: Mapping[str, torch.Tensor]) -> BaseModelOutput:
 
@@ -448,7 +457,7 @@ class LANISTRMultiModalModel(nn.Module):
     output = self.classifier(mm_out)
 
     ##======================== Supervised loss ==============================##
-    loss = F.cross_entropy(output, batch['labels'])
+    loss = self.loss_function(output, batch['labels'])
 
     return BaseModelOutput(
         logits=output,

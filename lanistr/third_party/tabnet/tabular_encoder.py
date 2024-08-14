@@ -433,13 +433,13 @@ class TabNetPretraining(torch.nn.Module):
       prior = 1 - masked_obf_vars
       masked_steps_out, _ = self.encoder(masked_x, prior=prior)
       res = self.decoder(masked_steps_out)
-      masked_last_hidden_state = torch.sum(masked_steps_out, dim=0)
+      masked_last_hidden_state = torch.sum(torch.stack(masked_steps_out, dim=0), dim=0)
       masked_loss = self.compute_loss(res, embedded_x, masked_obf_vars)
 
       unmasked_steps_out, _ = self.encoder(embedded_x)
       unmasked_res = self.decoder(unmasked_steps_out)
       unmasked_obf_vars = torch.ones(embedded_x.shape).to(x.device)
-      unmasked_last_hidden_state = torch.sum(unmasked_steps_out, dim=0)
+      unmasked_last_hidden_state = torch.sum(torch.stack(unmasked_steps_out, dim=0), dim=0)
       unmasked_loss = self.compute_loss(
           unmasked_res, embedded_x, unmasked_obf_vars
       )
